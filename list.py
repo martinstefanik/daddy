@@ -12,6 +12,7 @@ import time
 from math import ceil
 from datetime import timedelta
 import requests
+from progress.bar import IncrementalBar
 
 
 def get_credentials():
@@ -78,6 +79,9 @@ def get_domain_info(key, secret, word, tld='com'):
     except requests.exceptions.ConnectionError:
         print("Error: No internet connection.")
         sys.exit(1)
+    except requests.exceptions.Timeout:
+        print("Error: Connection timed out.")
+        sys.exit(1)
     except Exception as e:
         print(f"Warning: Couldn't check '{word}.{tld}':\n{e}\nSkipping.")
 
@@ -87,12 +91,26 @@ def get_domain_info(key, secret, word, tld='com'):
 def main():
     key, secret = get_credentials()
     words = get_words_from_file('words.txt')
-    for word in words:
-        info = get_domain_info(key, secret, word)
-        if info['available']:
-            print(f"{info['domain']}: {info['currency']} {info['price']:.2f}")
-        else:
-            print(f"{info['domain']} not available.")
+    available = []
+    bar = IncrementalBar(
+        'Progress', max=len(words),
+        suffix='%(index)d / %(max)d || Elapsed time: %(elapsed_td)s'
+    )
+    try:
+        for word in words:
+            d = get_domain_info(key, secret, word)
+            bar.next()
+            if d['available']:
+                text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
+                available.append(text)
+        with open('output.txt', 'w') as f:
+            f.write('\n'.join(available))
+    except KeyboardInterrupt:
+        bar.finish()
+        print('KeyboardInterrupt')
+        sys.exit(0)
+    else:
+        bar.finish()
 
 
 if __name__ == '__main__':
