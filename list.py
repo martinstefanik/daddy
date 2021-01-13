@@ -13,8 +13,10 @@ import time
 from math import ceil
 from datetime import timedelta
 import requests
-from progress.bar import IncrementalBar
 import click
+
+
+VERSION = '1.0.0'
 
 
 @click.command()
@@ -25,27 +27,23 @@ import click
 )
 @click.option(
     '-o', '--output-file',
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     default='available.txt',
     show_default=True,
-    type=click.Path(exists=False, dir_okay=False, writable=True),
     help='Name of the output file in which available domains are to be stored.'
 )
 @click.version_option(
-    version='1.0.0',
+    version=VERSION,
     message='%(version)s'
 )
 def check_availability(filename, output_file):
     key, secret = get_credentials()
     words = get_words_from_file(filename)
     available = []
-    bar = IncrementalBar(
-        'Progress', max=len(words),
-        suffix='%(index)d / %(max)d || Elapsed time: %(elapsed_td)s'
-    )
     what_to_do = 0
     if os.path.exists(output_file):
         what_to_do = click.prompt(
-            text=f'\n{output_file} already exists. How to proceed?\n',
+            text=f'Warning: {output_file} already exists. How to proceed?\n',
             type=click.Choice(('1', '2', '3')), default=1, show_choices=False,
             show_default=False, prompt_suffix=' 1 - Abort\n'
             f' 2 - Overwrite existing {output_file}\n'
@@ -56,20 +54,17 @@ def check_availability(filename, output_file):
         if what_to_do == 1:
             raise click.Abort()
     try:
-        for word in words:
-            d = get_domain_info(key, secret, word)
-            bar.next()
-            if d['available']:
-                text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
-                available.append(text)
+        with click.progressbar(words, label='Progress:') as words:
+            for word in words:
+                d = get_domain_info(key, secret, word)
+                if d['available']:
+                    text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
+                    available.append(text)
         mode = 'w' if what_to_do == 2 else 'a'
         with open(output_file, mode) as f:
             f.write('\n'.join(available))
     except KeyboardInterrupt:
-        bar.finish()
         raise click.Abort('Interrupted.')
-    else:
-        bar.finish()
 
 
 def get_credentials():
