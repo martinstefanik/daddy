@@ -19,7 +19,8 @@ import click
 
 @click.command()
 @click.argument(
-    'filename', type=click.Path(exists=True, dir_okay=False, readable=True),
+    'filename',
+    type=click.Path(exists=True, dir_okay=False, readable=True),
     nargs=1
 )
 @click.option(
@@ -29,7 +30,10 @@ import click
     type=click.Path(exists=False, dir_okay=False, writable=True),
     help='Name of the output file in which available domains are to be stored.'
 )
-@click.version_option(version='1.0.0', message='%(version)s')
+@click.version_option(
+    version='1.0.0',
+    message='%(version)s'
+)
 def check_availability(filename, output_file):
     key, secret = get_credentials()
     words = get_words_from_file(filename)
@@ -38,6 +42,19 @@ def check_availability(filename, output_file):
         'Progress', max=len(words),
         suffix='%(index)d / %(max)d || Elapsed time: %(elapsed_td)s'
     )
+    what_to_do = 0
+    if os.path.exists(output_file):
+        what_to_do = click.prompt(
+            text=f'\n{output_file} already exists. How to proceed?\n',
+            type=click.Choice(('1', '2', '3')), default=1, show_choices=False,
+            show_default=False, prompt_suffix=' 1 - Abort\n'
+            f' 2 - Overwrite existing {output_file}\n'
+            f' 3 - Append to existing {output_file}\n'
+            'Choice: '
+        )
+        what_to_do = int(what_to_do)
+        if what_to_do == 1:
+            raise click.Abort()
     try:
         for word in words:
             d = get_domain_info(key, secret, word)
@@ -45,7 +62,8 @@ def check_availability(filename, output_file):
             if d['available']:
                 text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
                 available.append(text)
-        with open(output_file, 'w') as f:
+        mode = 'w' if what_to_do == 2 else 'a'
+        with open(output_file, mode) as f:
             f.write('\n'.join(available))
     except KeyboardInterrupt:
         bar.finish()
