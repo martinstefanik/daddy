@@ -6,6 +6,7 @@ Generate a list of available dot com domains from a TXT file with words.
 Author: Martin Stefanik
 """
 
+import os
 import sys
 import json
 import time
@@ -13,32 +14,63 @@ from math import ceil
 from datetime import timedelta
 import requests
 from progress.bar import IncrementalBar
+import click
+
+
+@click.command()
+@click.argument(
+    'filename', type=click.Path(exists=True, dir_okay=False, readable=True),
+    nargs=1
+)
+@click.option(
+    '-o', '--output-file',
+    default='available.txt',
+    show_default=True,
+    type=click.Path(exists=False, dir_okay=False, writable=True),
+    help='Name of the output file in which available domains are to be stored.'
+)
+@click.version_option(version='1.0.0', message='%(version)s')
+def check_availability(filename, output_file):
+    key, secret = get_credentials()
+    words = get_words_from_file(filename)
+    available = []
+    bar = IncrementalBar(
+        'Progress', max=len(words),
+        suffix='%(index)d / %(max)d || Elapsed time: %(elapsed_td)s'
+    )
+    try:
+        for word in words:
+            d = get_domain_info(key, secret, word)
+            bar.next()
+            if d['available']:
+                text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
+                available.append(text)
+        with open(output_file, 'w') as f:
+            f.write('\n'.join(available))
+    except KeyboardInterrupt:
+        bar.finish()
+        raise click.Abort('Interrupted.')
+    else:
+        bar.finish()
 
 
 def get_credentials():
+    creds = '.credentials.json'
     try:
-        with open('.credentials.json', 'r') as f:
+        with open(creds, 'r') as f:
             data = json.load(f)
             key = data['key']
             secret = data['secret']
     except FileNotFoundError:
-        print(
-            "Error: Couldn't locate '.credentials.json' with API credentials "
-            "for 'godaddy.com'."
-        )
-        sys.exit(1)
+        raise click.FileError(creds, hint='file does not exist')
     except PermissionError:
-        print("Error: No read permission for '.credentials.json'.")
-        sys.exit(1)
+        raise click.FileError(creds, hint='file is not readable')
     except json.JSONDecodeError:
-        print("Error: Formatting issues in '.credentials.json' detected.")
-        sys.exit(1)
+        raise click.FileError(creds, hint='JSON formatting issues found')
     except KeyError as e:
-        print(f"Error: The key {e} isn't present in '.credentials.json'.")
-        sys.exit(1)
+        raise click.FileError(creds, hint=f"key '{e}' not present")
     except Exception:
-        print(f"Error: Failed to get credentials from '.credentials.json'.")
-        sys.exit(1)
+        raise click.FileError(creds)
 
     return (key, secret)
 
@@ -48,15 +80,8 @@ def get_words_from_file(file_name):
         with open(file_name, 'r') as f:
             words = f.read().splitlines()
             words = [w.lower() for w in words]
-    except FileNotFoundError:
-        print(f"Error: File '{file_name}' doesn't exist.")
-        sys.exit(1)
-    except PermissionError:
-        print(f"Error: No read permission for '{file_name}'.")
-        sys.exit(1)
     except Exception:
-        print(f"Error: Couldn't process '{file_name}'.")
-        sys.exit(1)
+        raise click.FileError(file_name)
 
     return words
 
@@ -77,41 +102,16 @@ def get_domain_info(key, secret, word, tld='com'):
     except KeyError:
         pass
     except requests.exceptions.ConnectionError:
-        print("Error: No internet connection.")
-        sys.exit(1)
+        raise click.ClickException("No internet connection.")
     except requests.exceptions.Timeout:
-        print("Error: Connection timed out.")
-        sys.exit(1)
+        raise click.ClickException("Connection timed out.")
     except Exception as e:
-        print(f"Warning: Couldn't check '{word}.{tld}':\n{e}\nSkipping.")
+        click.echo(
+            f"Warning: Couldn't check '{word}.{tld}':\n{e}\nSkipping."
+        )
 
     return resp
 
 
-def main():
-    key, secret = get_credentials()
-    words = get_words_from_file('words.txt')
-    available = []
-    bar = IncrementalBar(
-        'Progress', max=len(words),
-        suffix='%(index)d / %(max)d || Elapsed time: %(elapsed_td)s'
-    )
-    try:
-        for word in words:
-            d = get_domain_info(key, secret, word)
-            bar.next()
-            if d['available']:
-                text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
-                available.append(text)
-        with open('output.txt', 'w') as f:
-            f.write('\n'.join(available))
-    except KeyboardInterrupt:
-        bar.finish()
-        print('KeyboardInterrupt')
-        sys.exit(0)
-    else:
-        bar.finish()
-
-
 if __name__ == '__main__':
-    main()
+    check_availability()  # pylint: disable=no-value-for-parameter
