@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Generate a list of available dot com domains from a TXT file with words.
-
-Author: Martin Stefanik
+Copyright (c) 2021 Martin Stefanik
 """
 
 import os
-import sys
 import json
 import time
-from math import ceil
-from datetime import timedelta
 import requests
 import click
 
@@ -32,15 +27,44 @@ VERSION = '1.0.0'
     show_default=True,
     help='Name of the output file in which available domains are to be stored.'
 )
+@click.option(
+    '-k', '--key',
+    type=click.STRING,
+    help='API key for godaddy.com.'
+)
+@click.option(
+    '-s', '--secret',
+    type=click.STRING,
+    help='API secret for godaddy.com.'
+)
+@click.option(
+    '-t', '--tld',
+    type=click.STRING,
+    default='com',
+    show_default=True,
+    help="Top level domain (e.g. 'com' or 'guru')"
+)
 @click.version_option(
     version=VERSION,
     message='%(version)s'
 )
-def check_availability(filename, output_file):
-    key, secret = get_credentials()
-    words = get_words_from_file(filename)
-    available = []
-    what_to_do = 0
+def daddy(filename, output_file, key, secret, tld):
+    """
+    Check availability of domains listed in FILENAME at godaddy.com.
+    """
+    # Obtain API credentials
+    if key is None and secret is None:
+        key, secret = get_credentials()
+    elif key is None and secret is not None:
+        raise click.ClickException('-k / --key option not specified')
+    elif key is not None and secret is None:
+        raise click.ClickException('-s / --secret option not specified')
+
+    words = read_words_from_file(filename)
+    available = []  # placeholder for available domains and their price
+
+    # Prompt the user for what to do if `output_file` exists
+    what_to_do = 0  # zero indicates no file conflicts
     if os.path.exists(output_file):
         what_to_do = click.prompt(
             text=f'Warning: {output_file} already exists. How to proceed?\n',
@@ -56,7 +80,7 @@ def check_availability(filename, output_file):
     try:
         with click.progressbar(words, label='Progress:') as words:
             for word in words:
-                d = get_domain_info(key, secret, word)
+                d = get_domain_info(key, secret, word, tld)
                 if d['available']:
                     text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
                     available.append(text)
@@ -68,27 +92,33 @@ def check_availability(filename, output_file):
 
 
 def get_credentials():
-    creds = '.credentials.json'
+    """
+    Get godaddy.com API credentials from the config file.
+    """
+    config = os.path.join(click.get_app_dir('daddy'), 'config')
     try:
-        with open(creds, 'r') as f:
+        with open(config, 'r') as f:
             data = json.load(f)
             key = data['key']
             secret = data['secret']
     except FileNotFoundError:
-        raise click.FileError(creds, hint='file does not exist')
+        raise click.FileError(config, hint='file does not exist')
     except PermissionError:
-        raise click.FileError(creds, hint='file is not readable')
+        raise click.FileError(config, hint='file is not readable')
     except json.JSONDecodeError:
-        raise click.FileError(creds, hint='JSON formatting issues found')
+        raise click.FileError(config, hint='JSON formatting issues found')
     except KeyError as e:
-        raise click.FileError(creds, hint=f"key '{e}' not present")
+        raise click.FileError(config, hint=f"key '{e}' not present")
     except Exception:
-        raise click.FileError(creds)
+        raise click.FileError(config)
 
     return (key, secret)
 
 
-def get_words_from_file(file_name):
+def read_words_from_file(file_name):
+    """
+    Load the domain names from `file_name` into a list.
+    """
     try:
         with open(file_name, 'r') as f:
             words = f.read().splitlines()
@@ -99,16 +129,22 @@ def get_words_from_file(file_name):
     return words
 
 
-def get_domain_info(key, secret, word, tld='com'):
+def get_domain_info(key, secret, word, tld):
+    """
+    Get a response dictionary for a given domain name.
+    """
     if tld.startswith('.'):
         tld = tld[1:]
     url = f'https://api.godaddy.com/v1/domains/available?domain={word}.{tld}'
     headers = {'Authorization': f'sso-key {key}:{secret}'}
     try:
         resp = requests.get(url, headers=headers)
+
+        # Handle godaddy.com API limit
         if (wait := json.loads(resp.content).get('retryAfterSec')) is not None:
             time.sleep(wait)
             resp = requests.get(url, headers=headers)
+
         resp.raise_for_status()
         resp = resp.json()
         resp['price'] = resp['price'] / (10 ** 6)
@@ -118,13 +154,18 @@ def get_domain_info(key, secret, word, tld='com'):
         raise click.ClickException("No internet connection.")
     except requests.exceptions.Timeout:
         raise click.ClickException("Connection timed out.")
-    except Exception as e:
-        click.echo(
-            f"Warning: Couldn't check '{word}.{tld}':\n{e}\nSkipping."
-        )
+    except requests.exceptions.HTTPError as err:
+        if err.response.status_code == 401:
+            raise click.ClickException('invalid API key or secret')
+        elif err.response.status_code == 422:
+            raise click.ClickException(f"TLD '{tld}' unavailable")
+        else:
+            raise click.ClickException(err)
+    except Exception as err:
+        click.echo(f"Warning: Could not check '{word}.{tld}':\n{err}")
 
     return resp
 
 
 if __name__ == '__main__':
-    check_availability()  # pylint: disable=no-value-for-parameter
+    daddy()  # pylint: disable=no-value-for-parameter
