@@ -30,19 +30,21 @@ VERSION = '1.0.0'
 @click.option(
     '-k', '--key',
     type=click.STRING,
-    help='API key for godaddy.com.'
+    help="API key for godaddy.com. If it specified, '-s' also needs to be "
+    "specified."
 )
 @click.option(
     '-s', '--secret',
     type=click.STRING,
-    help='API secret for godaddy.com.'
+    help="API secret for godaddy.com.If it specified, '-k' also needs to be "
+    "specified."
 )
 @click.option(
     '-t', '--tld',
     type=click.STRING,
     default='com',
     show_default=True,
-    help="Top level domain (e.g. 'com')."
+    help="Top level domain (e.g. com)."
 )
 @click.version_option(
     version=VERSION,
@@ -70,7 +72,7 @@ def daddy(filename, output_file, key, secret, tld):
     # Prompt the user for what to do if `output_file` exists
     if os.path.exists(output_file):
         what_to_do = click.prompt(
-            text=f'Warning: {output_file} already exists. How to proceed?\n',
+            text=f"Warning: '{output_file}' already exists. How to proceed?\n",
             type=click.Choice(('1', '2', '3')), default=1, show_choices=False,
             show_default=False, prompt_suffix=' 1 - Abort\n'
             f' 2 - Overwrite existing {output_file}\n'
@@ -94,7 +96,7 @@ def daddy(filename, output_file, key, secret, tld):
         else:
             mode = 'w' if what_to_do == 2 else 'a'
             with open(output_file, mode) as f:
-                f.write('\n'.join(available))
+                f.write('\n'.join(sorted(available)))
     except KeyboardInterrupt:
         raise click.Abort('Interrupted.')
 
@@ -103,7 +105,7 @@ def get_credentials():
     """
     Get godaddy.com API credentials from the config file.
     """
-    config = os.path.join(click.get_app_dir('daddy'), 'config')
+    config = os.path.join(click.get_app_dir('daddy', roaming=True), 'config')
     try:
         with open(config, 'r') as f:
             data = json.load(f)
@@ -118,8 +120,8 @@ def get_credentials():
         raise click.FileError(config, hint='File is not readable.')
     except json.JSONDecodeError:
         raise click.FileError(config, hint='JSON formatting issues found.')
-    except KeyError as e:
-        raise click.FileError(config, hint=f"Key '{e}' not present.")
+    except KeyError as err:
+        raise click.FileError(config, hint=f"Key '{err}' not present.")
     except Exception:
         raise click.FileError(config)
 
@@ -151,7 +153,7 @@ def get_domain_info(key, secret, word, tld):
         tld = tld[1:]
     url = f'https://api.godaddy.com/v1/domains/available?domain={word}.{tld}'
     headers = {'Authorization': f'sso-key {key}:{secret}'}
-    while True:
+    while True:  # loop for repeating request upon hitting a request limit
         try:
             resp = requests.get(url, headers=headers)
             resp.raise_for_status()

@@ -37,7 +37,7 @@ Rather than supplying the API key and API secret to `daddy` every time it is run
 | OS      | Config file location                           |
 | ------- | ---------------------------------------------- |
 | Unix    | `~/.config/daddy/config`                       |
-| macOS   | `~/.daddy/config`                              |
+| macOS   | `~/Library/Application Support/daddy/config`   |
 | Windows | `C:\Users\<user>\AppData\Roaming\daddy\config` |
 
 The `config` file has to be formatted as s JSON file. The API key and API secret are store in the `key` and `secret` keys, respectively.
