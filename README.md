@@ -6,7 +6,19 @@ The tool has only been tested on Linux, but should work on Windows and Mac as we
 
 # Installation
 
-The script can be installed manually using `pip` by downloading/cloning the repo and by running `pip install --user .` inside the directory. The directory can be removed after the installation is complete.
+The tool can be installed manually using `pip` by downloading/cloning the repo and by running
+
+```
+pip install --user .
+```
+
+inside the directory. The directory can be removed after the installation is complete.
+
+Alternatively, if `git` is installed on the system, `daddy` can also be installed by running
+
+```
+pip install --user git+https://github.com/martinstefanik/daddy
+```
 
 # Usage
 
@@ -22,4 +34,4 @@ Rather than supplying the API key and API secret to `daddy` every time it is run
 | macOS   | `~/.daddy/config`                              |
 | Windows | `C:\Users\<user>\AppData\Roaming\daddy\config` |
 
-The `config` file has to be formatted as JSON. The API key and API secret are store in the `key` and `secret` keys, respectively.
+The `config` file has to be formatted as s JSON file. The API key and API secret are store in the `key` and `secret` keys, respectively.
