@@ -85,9 +85,12 @@ def daddy(filename, output_file, key, secret, tld):
                 if d['available']:
                     text = f"{d['domain']} : {d['currency']} {d['price']:.2f}"
                     available.append(text)
-        mode = 'w' if what_to_do == 2 else 'a'
-        with open(output_file, mode) as f:
-            f.write('\n'.join(available))
+        if not available:  # do not create the output file if not needed
+            click.echo(f"There are no available domain names in {filename}.")
+        else:
+            mode = 'w' if what_to_do == 2 else 'a'
+            with open(output_file, mode) as f:
+                f.write('\n'.join(available))
     except KeyboardInterrupt:
         raise click.Abort('Interrupted.')
 
