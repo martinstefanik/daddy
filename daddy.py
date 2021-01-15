@@ -144,34 +144,34 @@ def get_domain_info(key, secret, word, tld):
         tld = tld[1:]
     url = f'https://api.godaddy.com/v1/domains/available?domain={word}.{tld}'
     headers = {'Authorization': f'sso-key {key}:{secret}'}
-    try:
-        resp = requests.get(url, headers=headers)
-
-        # Handle godaddy.com API limit
-        if (wait := json.loads(resp.content).get('retryAfterSec')) is not None:
-            time.sleep(wait)
+    while True:
+        try:
             resp = requests.get(url, headers=headers)
-
-        resp.raise_for_status()
-        resp = resp.json()
-        resp['price'] = resp['price'] / (10 ** 6)
-    except KeyError:
-        pass
-    except requests.exceptions.ConnectionError:
-        raise click.ClickException("No internet connection.")
-    except requests.exceptions.Timeout:
-        raise click.ClickException("Connection timed out.")
-    except requests.exceptions.HTTPError as err:
-        if err.response.status_code == 401:
-            raise click.ClickException('Invalid API key or secret.')
-        elif err.response.status_code == 422:
-            raise click.ClickException(
-                f"TLD '{tld}' unavailable at godaddy.com."
-            )
+            resp.raise_for_status()
+            resp = resp.json()
+            resp['price'] = resp['price'] / (10 ** 6)
+        except KeyError:
+            break
+        except requests.exceptions.ConnectionError:
+            raise click.ClickException("No internet connection.")
+        except requests.exceptions.Timeout:
+            raise click.ClickException("Connection timed out.")
+        except requests.exceptions.HTTPError as err:
+            if err.response.status_code == 401:
+                raise click.ClickException('Invalid API key or secret.')
+            elif err.response.status_code == 422:
+                raise click.ClickException(
+                    f"TLD '{tld}' unavailable at godaddy.com."
+                )
+            elif err.response.status_code == 429:
+                waiting_time = err.response.json()['retryAfterSec']
+                time.sleep(waiting_time)
+            else:
+                raise click.ClickException('Internal server error. Try again.')
+        except Exception as err:
+            click.echo(f"Warning: Could not check '{word}.{tld}':\n{err}")
         else:
-            raise click.ClickException(err)
-    except Exception as err:
-        click.echo(f"Warning: Could not check '{word}.{tld}':\n{err}")
+            break
 
     return resp
 
