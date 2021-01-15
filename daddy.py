@@ -25,8 +25,7 @@ VERSION = '1.0.0'
     type=click.Path(exists=False, dir_okay=False, writable=True),
     default='available.txt',
     show_default=True,
-    help='Name of the output TXT file in which available domain names are to '
-    'be stored.'
+    help='Name of the output TXT file in which to store available domain names.'
 )
 @click.option(
     '-k', '--key',
@@ -43,7 +42,7 @@ VERSION = '1.0.0'
     type=click.STRING,
     default='com',
     show_default=True,
-    help="Top level domain (e.g. 'com' or 'guru')."
+    help="Top level domain (e.g. 'com')."
 )
 @click.version_option(
     version=VERSION,
@@ -57,15 +56,14 @@ def daddy(filename, output_file, key, secret, tld):
     if key is None and secret is None:
         key, secret = get_credentials()
     elif key is None and secret is not None:
-        raise click.ClickException('-k / --key option not specified')
+        raise click.ClickException('-k / --key option not specified.')
     elif key is not None and secret is None:
-        raise click.ClickException('-s / --secret option not specified')
+        raise click.ClickException('-s / --secret option not specified.')
 
     words = read_words_from_file(filename)
     available = []  # placeholder for available domains and their price
 
     # Prompt the user for what to do if `output_file` exists
-    what_to_do = 0  # zero indicates no file conflicts
     if os.path.exists(output_file):
         what_to_do = click.prompt(
             text=f'Warning: {output_file} already exists. How to proceed?\n',
@@ -78,6 +76,8 @@ def daddy(filename, output_file, key, secret, tld):
         what_to_do = int(what_to_do)
         if what_to_do == 1:
             raise click.Abort()
+    else:
+        what_to_do = 0  # zero indicates no file conflicts
     try:
         with click.progressbar(words, label='Progress:') as words:
             for word in words:
@@ -104,15 +104,15 @@ def get_credentials():
             secret = data['secret']
     except FileNotFoundError:
         raise click.FileError(
-            config, hint="file does not exist and '-k' and '-s' option not"
-            "supplied"
+            config, hint="File does not exist and '-k' and '-s' option not"
+            "supplied."
         )
     except PermissionError:
-        raise click.FileError(config, hint='file is not readable')
+        raise click.FileError(config, hint='File is not readable.')
     except json.JSONDecodeError:
-        raise click.FileError(config, hint='JSON formatting issues found')
+        raise click.FileError(config, hint='JSON formatting issues found.')
     except KeyError as e:
-        raise click.FileError(config, hint=f"key '{e}' not present")
+        raise click.FileError(config, hint=f"Key '{e}' not present.")
     except Exception:
         raise click.FileError(config)
 
@@ -160,9 +160,11 @@ def get_domain_info(key, secret, word, tld):
         raise click.ClickException("Connection timed out.")
     except requests.exceptions.HTTPError as err:
         if err.response.status_code == 401:
-            raise click.ClickException('invalid API key or secret')
+            raise click.ClickException('Invalid API key or secret.')
         elif err.response.status_code == 422:
-            raise click.ClickException(f"TLD '{tld}' unavailable")
+            raise click.ClickException(
+                f"TLD '{tld}' unavailable at godaddy.com."
+            )
         else:
             raise click.ClickException(err)
     except Exception as err:
