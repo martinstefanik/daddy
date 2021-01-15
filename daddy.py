@@ -52,6 +52,10 @@ def daddy(filename, output_file, key, secret, tld):
     """
     Check availability of domains listed in FILENAME at godaddy.com.
     """
+    # Additional parameter validation
+    if os.path.splitext(output_file)[1].lower() != '.txt':
+        raise click.BadParameter('TXT file required.', param_hint=output_file)
+
     # Obtain API credentials
     if key is None and secret is None:
         key, secret = get_credentials()
@@ -126,12 +130,15 @@ def read_words_from_file(file_name):
     """
     Load the domain names from `file_name` into a list.
     """
+    if os.path.splitext(file_name)[1].lower() != '.txt':
+        raise click.BadParameter('TXT file required.', param_hint='FILENAME')
     try:
         with open(file_name, 'r') as f:
             words = f.read().splitlines()
             words = [w.lower() for w in words]
+            words = list(set(words))  # unique only
     except Exception:
-        raise click.FileError(file_name)
+        raise click.FileError(file_name, hint='Unknown error.')
 
     return words
 
@@ -165,6 +172,10 @@ def get_domain_info(key, secret, word, tld):
                     raise click.ClickException(
                         f"TLD '{tld}' unavailable at godaddy.com."
                     )
+                else:  # issue with format of the domain name
+                    resp = resp.json()
+                    resp['available'] = False
+                    break
             elif err.response.status_code == 429:  # hitting requests limit
                 waiting_time = err.response.json()['retryAfterSec']
                 time.sleep(waiting_time)
