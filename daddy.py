@@ -25,7 +25,8 @@ VERSION = '1.0.0'
     type=click.Path(exists=False, dir_okay=False, writable=True),
     default='available.txt',
     show_default=True,
-    help='Name of the output file in which available domains are to be stored.'
+    help='Name of the output TXT file in which available domain names are to '
+    'be stored.'
 )
 @click.option(
     '-k', '--key',
@@ -42,7 +43,7 @@ VERSION = '1.0.0'
     type=click.STRING,
     default='com',
     show_default=True,
-    help="Top level domain (e.g. 'com' or 'guru')"
+    help="Top level domain (e.g. 'com' or 'guru')."
 )
 @click.version_option(
     version=VERSION,
@@ -102,7 +103,10 @@ def get_credentials():
             key = data['key']
             secret = data['secret']
     except FileNotFoundError:
-        raise click.FileError(config, hint='file does not exist')
+        raise click.FileError(
+            config, hint="file does not exist and '-k' and '-s' option not"
+            "supplied"
+        )
     except PermissionError:
         raise click.FileError(config, hint='file is not readable')
     except json.JSONDecodeError:
