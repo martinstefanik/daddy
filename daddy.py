@@ -160,13 +160,15 @@ def get_domain_info(key, secret, word, tld):
             if err.response.status_code == 401:
                 raise click.ClickException('Invalid API key or secret.')
             elif err.response.status_code == 422:
-                raise click.ClickException(
-                    f"TLD '{tld}' unavailable at godaddy.com."
-                )
-            elif err.response.status_code == 429:
+                error_code = err.response.json()['code']
+                if error_code == 'UNSUPPORTED_TLD':
+                    raise click.ClickException(
+                        f"TLD '{tld}' unavailable at godaddy.com."
+                    )
+            elif err.response.status_code == 429:  # hitting requests limit
                 waiting_time = err.response.json()['retryAfterSec']
                 time.sleep(waiting_time)
-            else:
+            elif err.response.status_code == 500:
                 raise click.ClickException('Internal server error. Try again.')
         except Exception as err:
             click.echo(f"Warning: Could not check '{word}.{tld}':\n{err}")
