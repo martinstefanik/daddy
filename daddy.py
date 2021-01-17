@@ -118,12 +118,14 @@ def get_credentials():
         )
     except PermissionError:
         raise click.FileError(config, hint='File is not readable.')
+    except IsADirectoryError:
+        raise click.FileError(config, hint='File expected. Directory given.')
     except json.JSONDecodeError:
         raise click.FileError(config, hint='JSON formatting issues found.')
     except KeyError as err:
         raise click.FileError(config, hint=f"Key '{err}' not present.")
     except Exception:
-        raise click.FileError(config)
+        raise click.FileError(config, hint='Unknown error.')
 
     return (key, secret)
 
@@ -139,7 +141,7 @@ def read_words_from_file(file_name):
             words = f.read().splitlines()
             words = [w.lower() for w in words]
             words = list(set(words))  # unique only
-    except Exception:
+    except Exception: # Other errors are handled by click. See the argument.
         raise click.FileError(file_name, hint='Unknown error.')
 
     return words
