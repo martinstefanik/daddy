@@ -25,7 +25,8 @@ VERSION = '1.0.0'
     type=click.Path(exists=False, dir_okay=False, writable=True),
     default='available.txt',
     show_default=True,
-    help='Name of the output TXT file in which to store available domain names.'
+    help='Name of the output TXT file in which to store available domain '
+    'names.'
 )
 @click.option(
     '-k', '--key',
@@ -141,7 +142,7 @@ def read_words_from_file(file_name):
             words = f.read().splitlines()
             words = [w.lower() for w in words]
             words = list(set(words))  # unique only
-    except Exception: # Other errors are handled by click. See the argument.
+    except Exception:  # Other errors are handled by click. See the argument.
         raise click.FileError(file_name, hint='Unknown error.')
 
     return words
