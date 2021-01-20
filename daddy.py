@@ -4,12 +4,12 @@
 Copyright (c) 2021 Martin Stefanik
 """
 
-import os
 import json
+import os
 import time
-import requests
-import click
 
+import click
+import requests
 
 VERSION = '1.0.0'
 

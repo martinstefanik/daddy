@@ -4,9 +4,9 @@
 Copyright (c) 2021 Martin Stefanik
 """
 
-from setuptools import setup, find_packages
-from daddy import VERSION
+from setuptools import find_packages, setup
 
+from daddy import VERSION
 
 with open('README.md') as f:
     README = f.read()
@@ -27,7 +27,7 @@ setup(
     license='MIT',
     py_modules=['daddy'],
     packages=find_packages(),
-    python_requires='>=3.8',
+    python_requires='>=3.6',
     install_requires=REQUIRES,
     entry_points="""
         [console_scripts]
