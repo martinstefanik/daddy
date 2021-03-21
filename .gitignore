@@ -76,9 +76,6 @@ venv.bak/
 *.pdf
 *.txt
 
-# Do not ignore papers relevant for a project
-!literature/*.pdf
-
 # Vim
 tags
 
@@ -88,6 +85,3 @@ tags
 # Mac OS
 .DS_Store
 ._.DS_Store
-
-# Ignore config file for the script
-.credentials.json
